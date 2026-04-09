@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Dustbin Monitor - Real Time</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-trash"></i> Smart Dustbin Monitor</h1>
+            <div class="status-indicator">
+                <span id="connection-status" class="status-dot offline"></span>
+                <span id="connection-text">Offline</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="dashboard">
+                <!-- Dustbin Level Card -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-line"></i> Dustbin Level</h2>
+                    <div class="dustbin-visual">
+                        <div class="dustbin-container">
+                            <div id="dustbin-fill" class="dustbin-fill"></div>
+                            <div class="dustbin-lid"></div>
+                        </div>
+                        <div class="level-info">
+                            <span id="level-percentage" class="percentage">0%</span>
+                            <span id="level-status" class="status">Empty</span>
+                        </div>
+                    </div>
+                    <div class="level-bar">
+                        <div id="level-progress" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Sensor Data Card -->
+                <div class="card">
+                    <h2><i class="fas fa-microchip"></i> Sensor Data</h2>
+                    <div class="sensor-grid">
+                        <div class="sensor-item">
+                            <label>Distance:</label>
+                            <span id="distance-value" class="sensor-value">-- cm</span>
+                        </div>
+                        <div class="sensor-item">
+                            <label>Fill Level:</label>
+                            <span id="fill-value" class="sensor-value">--%</span>
+                        </div>
+                        <div class="sensor-item">
+                            <label>Last Update:</label>
+                            <span id="last-update" class="sensor-value">--:--:--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert System Card -->
+                <div class="card">
+                    <h2><i class="fas fa-exclamation-triangle"></i> Alert System</h2>
+                    <div class="alert-status">
+                        <div class="alert-indicator" id="alert-indicator">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Normal Operation</span>
+                        </div>
+                        <div class="alert-threshold">
+                            <label>Alert Threshold: <span id="threshold-display">80%</span></label>
+                        </div>
+                    </div>
+                    <div id="notifications" class="notification-list">
+                        <div class="notification-item info">
+                            <i class="fas fa-info-circle"></i>
+                            <span>System initialized</span>
+                            <span class="timestamp">Just now</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Municipal Corporation Header -->
+                <div class="card municipal-header">
+                    <div class="municipal-info">
+                        <h2><i class="fas fa-city"></i> Smart City Municipal Corporation</h2>
+                        <div class="municipal-stats">
+                            <div class="stat-badge">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>Active Locations: <strong>15</strong></span>
+                            </div>
+                            <div class="stat-badge">
+                                <i class="fas fa-truck"></i>
+                                <span>Fleet Size: <strong>8</strong></span>
+                            </div>
+                            <div class="stat-badge">
+                                <i class="fas fa-users"></i>
+                                <span>Served Citizens: <strong>50K+</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="usp-section">
+                        <h3><i class="fas fa-star"></i> Our USPs</h3>
+                        <div class="usp-list">
+                            <div class="usp-item">
+                                <i class="fas fa-bolt"></i>
+                                <span>Real-time GPS Tracking</span>
+                            </div>
+                            <div class="usp-item">
+                                <i class="fas fa-bell"></i>
+                                <span>Instant SMS Alerts</span>
+                            </div>
+                            <div class="usp-item">
+                                <i class="fas fa-chart-line"></i>
+                                <span>AI-powered Predictions</span>
+                            </div>
+                            <div class="usp-item">
+                                <i class="fas fa-mobile-alt"></i>
+                                <span>Mobile App Integration</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Tracking Map Card -->
+                <div class="card map-card">
+                    <h2><i class="fas fa-map-marked-alt"></i> Live Tracking Map</h2>
+                    <div class="map-container">
+                        <div id="map" class="map"></div>
+                        <div class="map-overlay">
+                            <div class="map-legend">
+                                <div class="legend-item">
+                                    <i class="fas fa-trash" style="color: #f44336;"></i>
+                                    <span>Dustbin</span>
+                                </div>
+                                <div class="legend-item">
+                                    <i class="fas fa-truck" style="color: #4caf50;"></i>
+                                    <span>Vehicle</span>
+                                </div>
+                                <div class="legend-item">
+                                    <i class="fas fa-satellite-dish" style="color: #ff9800;"></i>
+                                    <span>GPS Status</span>
+                                </div>
+                            </div>
+                            <div class="distance-info" id="distance-info" style="display: none;">
+                                <div class="distance-item">
+                                    <i class="fas fa-route"></i>
+                                    <span>Distance: <strong id="route-distance">-- km</strong></span>
+                                </div>
+                                <div class="distance-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>ETA: <strong id="eta">-- min</strong></span>
+                                </div>
+                                <div class="distance-item">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span>Speed: <strong id="vehicle-speed">-- km/h</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fleet Management Card -->
+                <div class="card">
+                    <h2><i class="fas fa-truck-loading"></i> Fleet Management</h2>
+                    <div class="fleet-grid">
+                        <div class="fleet-item">
+                            <div class="vehicle-status online">
+                                <i class="fas fa-truck"></i>
+                                <span>Vehicle #1</span>
+                                <small>En Route - Location A</small>
+                            </div>
+                        </div>
+                        <div class="fleet-item">
+                            <div class="vehicle-status available">
+                                <i class="fas fa-truck"></i>
+                                <span>Vehicle #2</span>
+                                <small>Available - Depot</small>
+                            </div>
+                        </div>
+                        <div class="fleet-item">
+                            <div class="vehicle-status maintenance">
+                                <i class="fas fa-truck"></i>
+                                <span>Vehicle #3</span>
+                                <small>Maintenance</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Dashboard Card -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-bar"></i> Analytics Dashboard</h2>
+                    <div class="analytics-grid">
+                        <div class="analytics-item">
+                            <div class="analytics-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="analytics-data">
+                                <h4>Collection Efficiency</h4>
+                                <span class="analytics-value">94.5%</span>
+                                <small>+2.3% from last month</small>
+                            </div>
+                        </div>
+                        <div class="analytics-item">
+                            <div class="analytics-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="analytics-data">
+                                <h4>Avg Response Time</h4>
+                                <span class="analytics-value">18 min</span>
+                                <small>-5 min improvement</small>
+                            </div>
+                        </div>
+                        <div class="analytics-item">
+                            <div class="analytics-icon">
+                                <i class="fas fa-rupee-sign"></i>
+                            </div>
+                            <div class="analytics-data">
+                                <h4>Cost Savings</h4>
+                                <span class="analytics-value">Rs 45K</span>
+                                <small>This month</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Dispatch Card -->
+                <div class="card">
+                    <h2><i class="fas fa-truck"></i> Vehicle Dispatch</h2>
+                    <div class="dispatch-status">
+                        <div class="vehicle-status" id="vehicle-status">
+                            <i class="fas fa-truck-pickup"></i>
+                            <span>No Active Dispatch</span>
+                        </div>
+                        <div class="dispatch-info">
+                            <div class="info-item">
+                                <label>Available Vehicles:</label>
+                                <span id="available-vehicles">3</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Last Dispatch:</label>
+                                <span id="last-dispatch">--:--:--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Vehicle Location:</label>
+                                <span id="vehicle-location">--</span>
+                            </div>
+                            <div class="info-item">
+                                <label>Dustbin Location:</label>
+                                <span id="dustbin-location">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dispatch-actions">
+                        <button id="dispatch-btn" class="btn btn-warning" onclick="dispatchVehicle()">
+                            <i class="fas fa-truck-loading"></i> Dispatch Vehicle
+                        </button>
+                        <button id="complete-btn" class="btn btn-success" onclick="completeDispatch()" disabled>
+                            <i class="fas fa-check"></i> Mark Complete
+                        </button>
+                        <button id="cancel-btn" class="btn btn-secondary" onclick="cancelDispatch()" disabled>
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Control Panel Card -->
+                <div class="card">
+                    <h2><i class="fas fa-cog"></i> Control Panel</h2>
+                    <div class="control-buttons">
+                        <button id="refresh-btn" class="btn btn-primary">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button id="clear-btn" class="btn btn-secondary">
+                            <i class="fas fa-broom"></i> Clear Notifications
+                        </button>
+                        <button id="settings-btn" class="btn btn-tertiary">
+                            <i class="fas fa-cog"></i> Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Unified Map Card - Google Maps Style -->
+                <div class="card unified-map-card">
+                    <h2><i class="fas fa-route"></i> Smart Route Navigation</h2>
+                    <div class="map-header">
+                        <div class="route-search">
+                            <div class="search-inputs">
+                                <div class="input-group">
+                                    <i class="fas fa-truck"></i>
+                                    <input type="text" id="vehicle-location-input" placeholder="Vehicle Location" readonly>
+                                </div>
+                                <div class="input-group">
+                                    <i class="fas fa-trash"></i>
+                                    <input type="text" id="dustbin-location-input" placeholder="Dustbin Location" readonly>
+                                </div>
+                            </div>
+                            <div class="route-actions">
+                                <button id="calculate-route" class="btn btn-primary">
+                                    <i class="fas fa-route"></i> Calculate Route
+                                </button>
+                                <button id="dispatch-vehicle" class="btn btn-success">
+                                    <i class="fas fa-play"></i> Start Journey
+                                </button>
+                                <button id="clear-route" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="route-summary" id="route-summary">
+                            <div class="summary-item">
+                                <i class="fas fa-road"></i>
+                                <span id="total-distance">-- km</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-clock"></i>
+                                <span id="estimated-time">-- min</span>
+                            </div>
+                            <div class="summary-item">
+                                <i class="fas fa-tachometer-alt"></i>
+                                <span id="average-speed">-- km/h</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="map-container-unified">
+                        <div id="unified-map" class="unified-map"></div>
+                        <div class="map-overlay">
+                            <div class="map-controls-overlay">
+                                <button id="zoom-in" class="map-btn"><i class="fas fa-plus"></i></button>
+                                <button id="zoom-out" class="map-btn"><i class="fas fa-minus"></i></button>
+                                <button id="center-route" class="map-btn"><i class="fas fa-crosshairs"></i></button>
+                                <button id="fullscreen" class="map-btn"><i class="fas fa-expand"></i></button>
+                            </div>
+                            <div class="route-progress" id="route-progress" style="display: none;">
+                                <div class="progress-info">
+                                    <span id="progress-distance">0 km</span>
+                                    <span id="progress-percentage">0%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="route-details" id="route-details" style="display: none;">
+                        <h3><i class="fas fa-directions"></i> Turn-by-Turn Directions</h3>
+                        <div class="directions-list" id="directions-list">
+                            <!-- Directions will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vehicle Status Card -->
+                <div class="card">
+                    <h2><i class="fas fa-truck"></i> Vehicle Status</h2>
+                    <div class="vehicle-status">
+                        <div class="status-item">
+                            <label>Available Vehicles:</label>
+                            <span id="available-vehicles" class="status-value">3</span>
+                        </div>
+                        <div class="status-item">
+                            <label>Active Dispatch:</label>
+                            <span id="active-dispatch" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <label>Vehicle Location:</label>
+                            <span id="vehicle-location" class="status-value">--</span>
+                        </div>
+                        <div class="status-item">
+                            <label>Dispatch Status:</label>
+                            <span id="dispatch-status" class="status-value idle">Idle</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Card -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-bar"></i> Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="total-readings">0</div>
+                            <div class="stat-label">Total Readings</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="avg-level">0%</div>
+                            <div class="stat-label">Average Level</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="alerts-count">0</div>
+                            <div class="stat-label">Alerts Sent</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="uptime">0h</div>
+                            <div class="stat-label">Uptime</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Settings</h3>
+                <button class="close-btn" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="alert-threshold">Alert Threshold (%):</label>
+                    <input type="number" id="alert-threshold" value="80" min="50" max="100" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div class="setting-group">
+                    <label for="refresh-rate">Refresh Rate (seconds):</label>
+                    <input type="number" id="refresh-rate" value="5" min="1" max="60" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div class="setting-group">
+                    <label for="esp-ip">ESP8266 IP Address:</label>
+                    <input type="text" id="esp-ip" placeholder="192.168.1.100" value="192.168.1.100" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px; margin-bottom: 10px;">
+                    <button type="button" class="btn btn-secondary test-btn" onclick="testESPConnection()" style="width: 100%; padding: 8px 15px;">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                    <div id="esp-status" class="connection-status-message"></div>
+                </div>
+                <div class="setting-group">
+                    <label for="dustbin-lat">Dustbin Latitude:</label>
+                    <input type="number" id="dustbin-lat" placeholder="28.6139" step="0.0001" value="28.6139" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div class="setting-group">
+                    <label for="dustbin-lng">Dustbin Longitude:</label>
+                    <input type="number" id="dustbin-lng" placeholder="77.2090" step="0.0001" value="77.2090" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div class="setting-group">
+                    <label for="vehicle-lat">Vehicle Latitude:</label>
+                    <input type="number" id="vehicle-lat" placeholder="28.7041" step="0.0001" value="28.7041" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+                <div class="setting-group">
+                    <label for="vehicle-lng">Vehicle Longitude:</label>
+                    <input type="number" id="vehicle-lng" placeholder="77.1025" step="0.0001" value="77.1025" style="width: 100%; padding: 8px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
