@@ -1,5 +1,3 @@
-//Parteek
-//www.justdoelectronics.com
 
 #include <ESP8266WiFi.h>
 #include <SoftwareSerial.h>
